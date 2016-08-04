@@ -29,7 +29,7 @@ def parse_ndk_line_2(l2_string):
     l2['cmt_event_name'] = l2_string[0:16]
     l2['data_used'] = l2_string[17:61]         # need to parse further
     l2['cmt_type'] = l2_string[62:68]          # can be exanded
-    l2['moment_rate_function'] = l2_string[69:80] # more parsing too
+    l2['moment_rate_function_string'] = l2_string[69:80] # more parsing too
 
     return l2
 
@@ -260,6 +260,12 @@ def add_Mw(eq_dict):
     return
 
 
+def format_ref_date_string(eq_dict):
+    
+    eq_dict['reference_date'] = eq_dict['reference_date'].replace('/','-')
+    return
+
+
 def get_date_from_ref_date(eq_dict):
 
     ref_date = dt.date(1,1,1)
@@ -268,8 +274,10 @@ def get_date_from_ref_date(eq_dict):
     except KeyError:
         return ref_date
 
+    ref_date_string = ref_date_string.replace('/','-') # may be done already
+
     try:
-        ref_date=dt.date(*list(map(int, ref_date_string.split('/'))))
+        ref_date=dt.date(*list(map(int, ref_date_string.split('-'))))
     except ValueError:
         return
     
@@ -352,8 +360,6 @@ def centroid_params_from_string(centroid_string, dt_list):
         centroid_time = centroid_list[0]
         centroid_timestamp = str(centroid_time)
 
-
-
     d = {'centroid_datetime'  : centroid_timestamp,
          'centroid_time_err'  : centroid_list[1],
          'centroid_latitude'  : centroid_list[2],
@@ -378,12 +384,60 @@ def parse_centroid_string(eq_dict):
     return
 
 
-def parse_data_used_string(eq_dict):
-    pass
+def data_used_from_string(data_used_string):
 
+    data_used_string = data_used_string.replace('B:','')
+    data_used_string = data_used_string.replace('M:','')
+    data_used_string = data_used_string.replace('S:','')
+
+    du_list = data_used_string.split()
+
+    d = {'body_wave_stations'           :   int(du_list[0]),
+         'body_wave_components'         :   int(du_list[1]),
+         'body_wave_shortest_period'    : float(du_list[2]),
+         'surface_wave_stations'        :   int(du_list[3]),
+         'surface_wave_components'      :   int(du_list[4]),
+         'surface_wave_shortest_period' : float(du_list[5]),
+         'mantle_wave_stations'         :   int(du_list[6]),
+         'mantle_wave_components'       :   int(du_list[7]),
+         'mantle_wave_shortest_period'  : float(du_list[8])}
+    return d
+
+
+def parse_data_used_string(eq_dict):
+    try:
+        du_string = eq_dict.pop('data_used')
+    except KeyError:
+        return
+
+    du_d = data_used_from_string(du_string)
+    eq_dict.update(du_d)
+    return
+
+
+def moment_rate_function_from_string(mr_string):
+    mr_list = mr_string.split()
+
+    d = {'moment_rate_half_duration' : float(mr_list[1])}
+
+    if mr_list[0] == 'TRIHD:':
+        d['moment_rate_function'] = 'triangle'
+    elif mr_list[0] == 'BOXHD':
+        d['moment_rate_function'] = 'boxcar'
+    else:
+        d['moment_rate_function'] = 'NA'
+
+    return d
 
 def parse_moment_rate_function_string(eq_dict):
-    pass
+    try:
+        mr_string = eq_dict.pop('moment_rate_function_string')
+    except KeyError:
+        return
+
+    mr_d = moment_rate_function_from_string(mr_string)
+    eq_dict.update(mr_d)
+    return
 
 
 def format_data(eq_dict):
@@ -395,6 +449,7 @@ def format_data(eq_dict):
     parse_fault_params_string(eq_dict)
     parse_scalar_moment_string(eq_dict)
     add_Mw(eq_dict)
+    format_ref_date_string(eq_dict)
     get_ref_datetime(eq_dict)
     parse_centroid_string(eq_dict)
     parse_data_used_string(eq_dict) #not yet implemented
