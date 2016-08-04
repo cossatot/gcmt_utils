@@ -29,5 +29,5 @@ eq_list_test_2 = parse_ndk_string(ndk_test_2)
 
 eq_list_file_1 = parse_ndk_file(test_ndk_file)
 
-
+el = eq_list_test_1[0]
 e1 = eq_list_file_1[0]

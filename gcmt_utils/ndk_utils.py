@@ -1,11 +1,14 @@
 from ast import literal_eval as lev
 from math import log10
+import datetime as dt
 
 '''
 Functions to parse the Global CMT NDK format into more usable forms
 '''
 
-''' NDK string parsing functions'''
+'''
+NDK string parsing functions
+'''
 
 def parse_ndk_line_1(l1_string):
     l1 = {}
@@ -58,7 +61,8 @@ def parse_ndk_line_5(l5_string):
     return l5
 
 
-# further parsing of individual elements
+'''string processing functions'''
+
 def mb_ms_from_magnitude_string(mag_string):
 
     mag_string = mag_string.strip()
@@ -121,6 +125,7 @@ def parse_moment_tensor_params_string(eq_dict):
 
 
 def moment_tensor_params_from_string(mt_string, mt_exp):
+    mt_exp = str(mt_exp) # in case it's been made an int
     mt_list = mt_string.strip().split()
 
     mt_list = [lev(mt + 'e' + mt_exp) for mt in mt_list]
@@ -165,12 +170,13 @@ def parse_moment_tensor_axes_string(eq_dict):
 
 
 def moment_tensor_axes_from_string(mx_string, mt_exp):
+    mt_exp = str(mt_exp) # in case it's been made an int
     mx_list = mx_string.strip().split()
 
 
-    e0 = (lev(mx_list[0] + 'e' + mt_exp), lev(mx_list[1]), lev(mx_list[2]))
-    e1 = (lev(mx_list[3] + 'e' + mt_exp), lev(mx_list[4]), lev(mx_list[5]))
-    e2 = (lev(mx_list[6] + 'e' + mt_exp), lev(mx_list[7]), lev(mx_list[8]))
+    e0 = (float(mx_list[0] +'e' +mt_exp), float(mx_list[1]), float(mx_list[2]))
+    e1 = (float(mx_list[3] +'e' +mt_exp), float(mx_list[4]), float(mx_list[5]))
+    e2 = (float(mx_list[6] +'e' +mt_exp), float(mx_list[7]), float(mx_list[8]))
 
     eigs = sorted([e0, e1, e2], key=lambda x: x[0])
 
@@ -206,7 +212,7 @@ def parse_fault_params_string(eq_dict):
 def fault_params_from_string(fp_string):
     fp_list = fp_string.strip().split()
 
-    fp_list = list(map(lev, fp_list))
+    fp_list = list(map(float, fp_list))
 
     d = {'strike_1' : fp_list[0],
          'dip_1':     fp_list[1],
@@ -217,23 +223,28 @@ def fault_params_from_string(fp_string):
 
     return d
 
-def parse_scalar_moment_string(eq_dict):
-    pass
-
-
-def parse_centroid_string(eq_dict):
-    pass
-
-def parse_data_used_string(eq_dict):
-    pass
-
-
-def parse_moment_rate_function_string(eq_dict):
-    pass
-
 
 def parse_scalar_moment_string(eq_dict):
-    pass
+    try:
+        sm_string = eq_dict.pop('scalar_moment_string')
+    except KeyError:
+        print('EQ {} has no scalar moment string'.format(
+                                                    eq_dict['cmt_event_name']))
+        return
+    try:
+        mt_exp = eq_dict['mt_exp']
+    except KeyError:
+        print('EQ {} has no moment exp'.format(eq_dict['cmt_event_name']))
+        return
+
+    eq_dict['scalar_moment'] = calc_scalar_moment(sm_string, mt_exp)
+    return
+
+
+def calc_scalar_moment(sm_string, mt_exp):
+    mt_exp = str(mt_exp) # in case it's been made an int
+
+    return lev(sm_string + 'e' + mt_exp)
 
 
 def Mw_from_scalar_moment(scalar_moment):
@@ -242,6 +253,132 @@ def Mw_from_scalar_moment(scalar_moment):
 
 
 def add_Mw(eq_dict):
+    try:
+        eq_dict['Mw'] = Mw_from_scalar_moment(eq_dict['scalar_moment'])
+    except KeyError:
+        parse_scalar_moment_string(eq_dict)
+    return
+
+
+def get_date_from_ref_date_time(eq_dict):
+
+    ref_date = dt.date(1,1,1)
+    try:
+        ref_date_string = eq_dict['reference_date']
+    except KeyError:
+        return ref_date
+
+    try:
+        ref_date=dt.date(*list(map(int, ref_date_string.split('/'))))
+    except ValueError:
+        return
+    
+    return ref_date
+
+
+def get_time_from_ref_time_time(eq_dict):
+    ref_time = dt.time(0)
+
+    try:
+        ref_time_string = eq_dict['reference_time']
+    except (KeyError, AttributeError):
+        return ref_time
+
+    ref_time_list = ref_time_string.replace('.',':').split(':')
+    
+    try:
+        for i in (0,1,2):
+            ref_time_list[i] = int(ref_time_list[i])
+        
+        ref_time_list[3] = int( lev('0.'+ref_time_list[3]) * 1e6)
+
+        ref_time = dt.time(*ref_time_list)
+
+    except:
+        return ref_time
+    
+    return ref_time
+
+
+def get_ref_datetime(eq_dict):
+    ref_date = get_date_from_ref_date_time(eq_dict)
+    ref_time = get_time_from_ref_time_time(eq_dict)
+
+    if ref_date == dt.date(1,1,1):
+        print('EQ {} has a bad date string'.format(eq_dict['cmt_event_name']))
+    if ref_time == dt.time(0):
+        print('EQ {} has a bad time string'.format(eq_dict['cmt_event_name']))
+
+    datetime = dt.datetime.combine(ref_date, ref_time)
+
+    timestamp = datetime.isoformat(' ')
+
+    eq_dict['reference_datetime'] = timestamp
+    return 
+
+
+def datetime_string_to_list(eq_dict):
+
+    try:
+        ref_datetime_str = eq_dict['reference_datetime']
+    except KeyError:
+        try:
+            get_ref_datetime(eq_dict)
+            ref_datetime_str = eq_dict['reference_datetime']
+        except:
+            print('EQ {} has a bad datetime'.format(eq_dict['cmt_event_name']))
+            ref_datetime_str = '1 1 1'
+
+    dt_str = ref_datetime_str.replace('-',' ').replace(':',' ').replace('.',' ')
+    
+    dt_list = list(map(int, dt_str.split()))
+
+    return dt_list
+
+
+def centroid_params_from_string(centroid_string, dt_list):
+    centroid_list = list(map(lev, centroid_string.split()[1:]))
+
+    try:
+        eq_datetime = dt.datetime(*dt_list)
+        centroid_timedelta = dt.timedelta(seconds = centroid_list[0])
+        centroid_time = eq_datetime + centroid_timedelta
+        centroid_timestamp = centroid_time.isoformat(' ')
+    except:
+        centroid_time = centroid_list[0]
+        centroid_timestamp = str(centroid_time)
+
+
+
+    d = {'centroid_datetime'  : centroid_timestamp,
+         'centroid_time_err'  : centroid_list[1],
+         'centroid_latitude'  : centroid_list[2],
+         'centroid_lat_err'   : centroid_list[3],
+         'centroid_longitude' : centroid_list[4],
+         'centroid_lon_err'   : centroid_list[5],
+         'centroid_depth'     : centroid_list[6],
+         'centroid_depth_err' : centroid_list[7]}
+
+    return d
+
+
+def parse_centroid_string(eq_dict):
+
+    dt_list = datetime_string_to_list(eq_dict)
+
+    centroid_string = eq_dict.pop('centroid_params')
+
+    centroid_params = centroid_params_from_string(centroid_string, dt_list)
+
+    eq_dict.update(centroid_params)
+    return
+
+
+def parse_data_used_string(eq_dict):
+    pass
+
+
+def parse_moment_rate_function_string(eq_dict):
     pass
 
 
@@ -252,12 +389,20 @@ def format_data(eq_dict):
     parse_moment_tensor_params_string(eq_dict)
     parse_moment_tensor_axes_string(eq_dict)
     parse_fault_params_string(eq_dict)
-
+    parse_scalar_moment_string(eq_dict)
+    add_Mw(eq_dict)
+    get_ref_datetime(eq_dict)
+    parse_centroid_string(eq_dict)
+    parse_data_used_string(eq_dict) #not yet implemented
+    parse_moment_rate_function_string(eq_dict) #not yet implemented
     return
 
 
 
-# Bigger functions
+'''
+Functions for working on full NDK strings or files
+'''
+
 def parse_ndk_line_list(ndk_line_list, start_line_no=0, strip_data=True,
                         format_dict=True):
 
@@ -307,12 +452,21 @@ def parse_ndk_string(ndk_string, strip_data=True):
 
     for event_no in range(n_events):
 
-        line_start = event_no * 5
+        try:
+            line_start = event_no * 5
 
-        event_dict = parse_ndk_line_list(ndk_line_list, 
-                                         start_line_no=line_start,
-                                         strip_data=strip_data)
-        eq_list.append(event_dict)
+            event_dict = parse_ndk_line_list(ndk_line_list, 
+                                             start_line_no=line_start,
+                                             strip_data=strip_data)
+            eq_list.append(event_dict)
+
+        except SyntaxError as SE:
+            #print(SE)
+            event_name_line = event_no * 5 + 1
+            event_name = ndk_line_list[event_name_line].split()[0]
+
+            print("EQ {} Couldn't be processed; check file lines {}-{}"
+                  .format(event_name, event_name_line-1, event_name_line+4))
 
     return eq_list
 
@@ -323,7 +477,9 @@ def parse_ndk_file(filepath):
     return parse_ndk_string(ndk_file_string)
 
 
-''' util functions'''
+'''
+util functions
+'''
 
 def strip_dict(d):
     '''
