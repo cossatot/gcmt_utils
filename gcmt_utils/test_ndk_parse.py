@@ -1,4 +1,4 @@
-from ndk_utils import *
+from ndk_parser import *
 
 ndk_test_1 = '''
 PDE  2005/01/01 01:20:05.4  13.78  -88.78 193.1 5.0 0.0 EL SALVADOR             
