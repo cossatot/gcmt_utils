@@ -260,7 +260,7 @@ def add_Mw(eq_dict):
     return
 
 
-def get_date_from_ref_date_time(eq_dict):
+def get_date_from_ref_date(eq_dict):
 
     ref_date = dt.date(1,1,1)
     try:
@@ -276,7 +276,7 @@ def get_date_from_ref_date_time(eq_dict):
     return ref_date
 
 
-def get_time_from_ref_time_time(eq_dict):
+def get_time_from_ref_time(eq_dict):
     ref_time = dt.time(0)
 
     try:
@@ -292,6 +292,10 @@ def get_time_from_ref_time_time(eq_dict):
         
         ref_time_list[3] = int( lev('0.'+ref_time_list[3]) * 1e6)
 
+        if ref_time_list[2] == 60:
+            ref_time_list[1] += 1
+            ref_time_list[2] = 0
+
         ref_time = dt.time(*ref_time_list)
 
     except:
@@ -301,12 +305,12 @@ def get_time_from_ref_time_time(eq_dict):
 
 
 def get_ref_datetime(eq_dict):
-    ref_date = get_date_from_ref_date_time(eq_dict)
-    ref_time = get_time_from_ref_time_time(eq_dict)
+    ref_date = get_date_from_ref_date(eq_dict)
+    ref_time = get_time_from_ref_time(eq_dict)
 
     if ref_date == dt.date(1,1,1):
         print('EQ {} has a bad date string'.format(eq_dict['cmt_event_name']))
-    if ref_time == dt.time(0):
+    if ref_time == dt.time(0,0,0,0):
         print('EQ {} has a bad time string'.format(eq_dict['cmt_event_name']))
 
     datetime = dt.datetime.combine(ref_date, ref_time)
