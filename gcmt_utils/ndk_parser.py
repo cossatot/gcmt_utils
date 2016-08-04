@@ -2,6 +2,8 @@ from ast import literal_eval as lev
 from math import log10
 import datetime as dt
 
+from .gcmt_utils import strip_dict, merge_dicts
+
 '''
 Functions to parse the Global CMT NDK format into more usable forms
 '''
@@ -329,6 +331,10 @@ def get_ref_datetime(eq_dict):
     return 
 
 
+def get_centroid_date_time(eq_dict):
+    pass
+
+
 def datetime_string_to_list(eq_dict):
 
     try:
@@ -357,10 +363,14 @@ def centroid_params_from_string(centroid_string, dt_list):
         centroid_time = eq_datetime + centroid_timedelta
         centroid_timestamp = centroid_time.isoformat(' ')
     except:
-        centroid_time = centroid_list[0]
-        centroid_timestamp = str(centroid_time)
+        # no failures tolerated
+        #centroid_time = centroid_list[0]
+        #centroid_timestamp = str(centroid_time)
+        pass
 
     d = {'centroid_datetime'  : centroid_timestamp,
+         'centroid_date' : centroid_timestamp.split()[0],
+         'centroid_time' : centroid_timestamp.split()[1],
          'centroid_time_err'  : centroid_list[1],
          'centroid_latitude'  : centroid_list[2],
          'centroid_lat_err'   : centroid_list[3],
@@ -527,38 +537,13 @@ def parse_ndk_string(ndk_string, strip_data=True):
             print("EQ {} Couldn't be processed; check file lines {}-{}"
                   .format(event_name, event_name_line-1, event_name_line+4))
 
-    return eq_list
+    if n_events == 1:
+        return eq_list[0]
+    else:
+        return eq_list
 
 
 def parse_ndk_file(filepath):
     ndk_file_string = read_ndk_file(filepath)
 
     return parse_ndk_string(ndk_file_string)
-
-
-'''
-util functions
-'''
-
-def strip_dict(d):
-    '''
-    Takes a dictionary d, and returns a new dictionary with all of
-    the values stripped if they are strings, and left alone otherwise.
-    '''
-    return {key: d[key].strip() if type(d[key])==str else d[key] for key in d} 
-
-
-def merge_dicts(*dicts):
-    '''
-    Merges a list of dictionaries; nested dictionaries should stay nested.
-    '''
-    d_merge = {}
-
-    for d in dicts:
-        d_merge.update(d)
-
-    return d_merge
-
-
-
-

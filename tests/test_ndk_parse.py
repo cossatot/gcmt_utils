@@ -1,4 +1,5 @@
-from ndk_parser import *
+import sys; sys.path.append('../')
+from gcmt_utils.ndk_parser import *
 
 ndk_test_1 = '''
 PDE  2005/01/01 01:20:05.4  13.78  -88.78 193.1 5.0 0.0 EL SALVADOR             
@@ -29,5 +30,5 @@ eq_list_test_2 = parse_ndk_string(ndk_test_2)
 
 eq_list_file_1 = parse_ndk_file(test_ndk_file)
 
-el = eq_list_test_1[0]
+el = eq_list_test_1
 e1 = eq_list_file_1[0]
