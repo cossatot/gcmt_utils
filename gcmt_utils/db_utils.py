@@ -1,4 +1,4 @@
-import sqlite3 as lite
+import sqlite3 as sq
 import sys
 
 sqlite_gcmt_table_schema = (
@@ -115,7 +115,7 @@ def make_row_tuple(eq_dict):
 
 
 def make_gcmt_table(table_name, schema, db=None):
-    con = lite.connect(db)
+    con = sq.connect(db)
 
     with con:
         cur = con.cursor()
@@ -125,7 +125,7 @@ def make_gcmt_table(table_name, schema, db=None):
 
 
 def connect_to_db(db):
-    return lite.connect(db)
+    return sq.connect(db)
 
 
 def insert_row_tuple(cur, table, row_tuple):
@@ -174,3 +174,12 @@ def insert_many_rows(con, table_name, n_cols, multi_row_tuple,
         print('last id is ', cur.lastrowid)
 
     return
+
+
+def check_exists(tag=None, val=None, table=None, con=None):
+    cur = con.cursor()
+
+    query_str = 'SELECT EXISTS(SELECT 1 FROM {} WHERE {}="{}" LIMIT 1);'
+    query = query_str.format(table, tag, val)
+
+    return bool(cur.execute(query).fetchone()[0])
