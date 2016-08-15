@@ -1,22 +1,18 @@
 from urllib.request import urlopen
 import sqlite3 as sq
+import time
 
 import sys; sys.path.append('../')
 import gcmt_utils.ndk_parser as ndk
 import gcmt_utils.db_utils as db
 
+t0 = time.time()
 
 quick_cmt_url = ('http://www.ldeo.columbia.edu/~gcmt/projects/CMT/catalog/'
                  + 'NEW_QUICK/qcmt.ndk')
 
 print('downloading new quick cmts')
 quick_cmt_ndk = urlopen(quick_cmt_url).read().decode('utf-8')
-
-
-'''
-need to figure out how to identify cmts from quick cmts already in the 
-db, then remove those and replace with new monthlies
-'''
 
 print('parsing quick cmts')
 
@@ -37,32 +33,31 @@ for eq_d in quick_cmt_list:
     get_bb_url(eq_d, bb_base_url)
 
 
+catalog_prefixes = ('B', 'C', 'D', 'G', 'L', 'M', 'S', 'Z')
+
 print('inserting new events in database')
-# check to see if event is in db already
-
-def check_old_events(event_name, con):
-    old_prefixes = ('B', 'C', 'D', 'G', 'L', 'M', 'S', 'Z')
-
-    _event_name = event_name[1:]
-
-    return any(db.check_exists('Event', op+_event_name, 'GCMT_events', con)
-               for op in old_prefixes)
-
 gcmt_db = '../data/gcmt_table_bb_urls.sqlite'
 gcmt_table = 'GCMT_events'
 gcmt_schema = db.sqlite_gcmt_table_schema
 
 
-
+new_row_list = []
 with sq.connect(gcmt_db) as con:
-    new_count = 0
-    for eq_d in quick_cmt_list:
-        if not check_old_events(eq_d['cmt_event_name'], con):
-            cur = con.cursor()
-            r_tup = db.make_row_tuple(eq_d)
-            db.insert_row_tuple(cur, gcmt_table, r_tup)
+    new_event_names = [eq_d['cmt_event_name'] for eq_d in quick_cmt_list]
 
-            new_count += 1
+    events_in_db = db.check_event_exists(vals=new_event_names, tag='Event',
+                                         table=gcmt_table, con=con)
 
-print('inserted {} new earthquakes'.format(new_count))
+    new_row_tup = tuple(db.make_row_tuple(eq_d)
+                        for i, eq_d in enumerate(quick_cmt_list)
+                        if not events_in_db[i])
+
+    db.insert_many_rows(con, gcmt_table, len(new_row_tup[0]),
+                        new_row_tup)
+
+t1 = time.time()
+
+print('inserted {} Quick CMT earthquakes in {} s'.format(len(new_row_tup), 
+                                                           int(t1-t0)))
+
 
