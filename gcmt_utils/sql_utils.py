@@ -1,5 +1,6 @@
-import sqlite3 as lite
+import sqlite3 as sq
 import sys
+import json
 
 sqlite_gcmt_table_schema = (
    'Event TEXT, Longitude REAL, Latitude REAL, Depth REAL, Datetime DATETIME, '
@@ -115,7 +116,7 @@ def make_row_tuple(eq_dict):
 
 
 def make_gcmt_table(table_name, schema, db=None):
-    con = lite.connect(db)
+    con = sq.connect(db)
 
     with con:
         cur = con.cursor()
@@ -125,7 +126,7 @@ def make_gcmt_table(table_name, schema, db=None):
 
 
 def connect_to_db(db):
-    return lite.connect(db)
+    return sq.connect(db)
 
 
 def insert_row_tuple(cur, table, row_tuple):
@@ -174,3 +175,125 @@ def insert_many_rows(con, table_name, n_cols, multi_row_tuple,
         print('last id is ', cur.lastrowid)
 
     return
+
+
+def check_exists(tag=None, val=None, table=None, con=None):
+    cur = con.cursor()
+
+    query_str = 'SELECT EXISTS(SELECT 1 FROM {} WHERE {}="{}" LIMIT 1);'
+    query = query_str.format(table, tag, val)
+
+    return bool(cur.execute(query).fetchone()[0])
+
+
+def check_event_exists(tag=None, val=None, vals=None, table=None, con=None,
+                       prefix_list=None):
+    cur = con.cursor()
+
+    query = "SELECT {} FROM {}".format(tag, table)
+
+    event_list = cur.execute(query).fetchall()
+    event_list = [ev[0] for ev in event_list]
+
+    if not prefix_list:
+        if val:
+            return val in event_list
+        elif vals:
+            return [val in event_list for val in vals]
+
+    elif prefix_list:
+        if val:
+            return any(p + val[1:] for p in prefix_list)
+        elif vals:
+            return [any(p + val[1:] for p in prefix_list)
+                    for val in vals]
+
+
+title_string = "Mw: {:0.1f} Date: {} Depth: {}"
+
+def row_to_feature_dict(row, columns):
+    row_d = {col_name : row[i] for i, col_name in enumerate(columns)}
+    
+    fd =  {'geometry': {
+                       'type': 'Point',
+                       'coordinates' : [row_d['Longitude'], 
+                                        row_d['Latitude']]
+                        },
+          'properties': {
+                         'icon': {
+                                  'iconSize': [int(0.7 * row_d['Mw']**2.1), 
+                                               int(0.7 * row_d['Mw']**2.1)],
+
+                                  'iconUrl': row_d["Focal_mech"] 
+                                 },
+
+                         'title': title_string.format(row_d['Mw'], 
+                                                      row_d['Date'],
+                                                      row_d['Depth']),
+                         'Mw': row_d['Mw'],
+                         'Depth': row_d['Depth'],
+                         'minZoom' : []
+                         },
+           'type': 'Feature'
+           }
+    return fd
+
+
+new_geojson_dict = {'crs': {'properties': 
+                               {'name': 'urn:ogc:def:crs:OGC:1.3:CRS84'},
+                                'type': 'name'},
+                    'features': [],
+                    'type': 'FeatureCollection'}
+
+
+def make_new_geojson_from_table(table, db, geojson_dict=new_geojson_dict):
+
+    gjd = geojson_dict
+    feature_list = []
+
+    with sq.connect(db) as con:
+        
+        cur = con.cursor()
+
+        cur.execute("SELECT * FROM {}".format(table))
+
+        columns = [d[0] for d in cur.description]
+
+        while True:
+            row = cur.fetchone()
+            if row == None:
+                break
+
+            feature_list.append(row_to_feature_dict(row, columns))
+
+    gjd['features'] = feature_list
+
+    return gjd
+
+
+def update_geojson_from_table(table, db, geojson_dict):
+
+    feature_list = geojson_dict['features']
+    event_list = [f['properties']['icon']['iconUrl']
+                                            .split('/')[-1].split('.')[0]
+                  for f in feature_list]
+
+    with sq.connect(db) as con:
+        cur = con.cursor()
+
+        cur.execute("SELECT * FROM {}".format(table))
+
+        columns = [d[0] for d in cur.description]
+
+        while True:
+            row = cur.fetchone()
+            if row == None:
+                break
+            
+            if row[0] not in event_list:
+
+                feature_list.append(row_to_feature_dict(row, columns))
+
+    return geojson_dict
+
+
