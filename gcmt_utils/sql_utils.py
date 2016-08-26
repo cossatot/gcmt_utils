@@ -217,16 +217,25 @@ def row_to_feature_dict(row, columns):
     fd =  {'geometry': {
                        'type': 'Point',
                        'coordinates' : [row_d['Longitude'], 
-                                        row_d['Latitude']]},
+                                        row_d['Latitude']]
+                        },
           'properties': {
                          'icon': {
-                                  'iconSize': [int(10 * row_d['Mw']), 
-                                               int(10 * row_d['Mw'])],
-                                  'iconUrl': row_d["Focal_mech"] },
+                                  'iconSize': [int(0.7 * row_d['Mw']**2.1), 
+                                               int(0.7 * row_d['Mw']**2.1)],
+
+                                  'iconUrl': row_d["Focal_mech"] 
+                                 },
 
                          'title': title_string.format(row_d['Mw'], 
                                                       row_d['Date'],
-                                                      row_d['Depth'])}}
+                                                      row_d['Depth']),
+                         'Mw': row_d['Mw'],
+                         'Depth': row_d['Depth'],
+                         'minZoom' : []
+                         },
+           'type': 'Feature'
+           }
     return fd
 
 
