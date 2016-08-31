@@ -1,6 +1,7 @@
 from ast import literal_eval as lev
 from math import log10
 import datetime as dt
+import logging
 
 #from .gcmt_utils import strip_dict, merge_dicts
 
@@ -91,7 +92,9 @@ def parse_reference_locations_strings(eq_dict):
         try:
             _par = eq_dict[param].strip()
         except KeyError:
-            print('EQ {} has no {}'.format(eq_dict['cmt_event_name'], param))
+            #logging.warning('EQ {} has no {}'.format(eq_dict['cmt_event_name'], param))
+            logging.warning('EQ {} has no {}'.format(eq_dict['cmt_event_name'],
+                                                     param))
         except AttributeError:
             pass
         try:
@@ -107,13 +110,14 @@ def parse_moment_tensor_params_string(eq_dict):
     try:
         mt_string = eq_dict.pop('mt_params')
     except KeyError:
-        print('EQ {} has no moment tensor params'.format(
+        logging.warning('EQ {} has no moment tensor params'.format(
                                                     eq_dict['cmt_event_name']))
         return
     try:
         mt_exp = eq_dict['mt_exp']
     except KeyError:
-        print('EQ {} has no moment exp'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has no moment exp'.format(
+                                                    eq_dict['cmt_event_name']))
         return
 
     try:
@@ -152,13 +156,14 @@ def parse_moment_tensor_axes_string(eq_dict):
     try:
         mx_string = eq_dict.pop('mt_princ_axes')
     except KeyError:
-        print('EQ {} has no moment tensor axes params'.format(
+        logging.warning('EQ {} has no moment tensor axes params'.format(
                                                     eq_dict['cmt_event_name']))
         return
     try:
         mt_exp = eq_dict['mt_exp']
     except KeyError:
-        print('EQ {} has no moment exp'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has no moment exp'.format(
+                                                    eq_dict['cmt_event_name']))
         return
 
     try:
@@ -199,7 +204,8 @@ def parse_fault_params_string(eq_dict):
     try:
         fp_string = eq_dict.pop('fault_params')
     except KeyError:
-        print('EQ {} has no fault parameters'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has no fault parameters'.format(
+                                                    eq_dict['cmt_event_name']))
         return
 
     try:
@@ -230,13 +236,14 @@ def parse_scalar_moment_string(eq_dict):
     try:
         sm_string = eq_dict.pop('scalar_moment_string')
     except KeyError:
-        print('EQ {} has no scalar moment string'.format(
+        logging.warning('EQ {} has no scalar moment string'.format(
                                                     eq_dict['cmt_event_name']))
         return
     try:
         mt_exp = eq_dict['mt_exp']
     except KeyError:
-        print('EQ {} has no moment exp'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has no moment exp'.format(
+                                                    eq_dict['cmt_event_name']))
         return
 
     eq_dict['scalar_moment'] = calc_scalar_moment(sm_string, mt_exp)
@@ -319,9 +326,11 @@ def get_ref_datetime(eq_dict):
     ref_time = get_time_from_ref_time(eq_dict)
 
     if ref_date == dt.date(1,1,1):
-        print('EQ {} has a bad date string'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has a bad date string'.format(
+                                                    eq_dict['cmt_event_name']))
     if ref_time == dt.time(0,0,0,0):
-        print('EQ {} has a bad time string'.format(eq_dict['cmt_event_name']))
+        logging.warning('EQ {} has a bad time string'.format(
+                                                    eq_dict['cmt_event_name']))
 
     datetime = dt.datetime.combine(ref_date, ref_time)
 
@@ -344,10 +353,11 @@ def datetime_string_to_list(eq_dict):
             get_ref_datetime(eq_dict)
             ref_datetime_str = eq_dict['reference_datetime']
         except:
-            print('EQ {} has a bad datetime'.format(eq_dict['cmt_event_name']))
+            logging.warning('EQ {} has a bad datetime'.format(
+                                                    eq_dict['cmt_event_name']))
             ref_datetime_str = '1 1 1'
 
-    dt_str = ref_datetime_str.replace('-',' ').replace(':',' ').replace('.',' ')
+    dt_str= ref_datetime_str.replace('-',' ').replace(':',' ').replace('.',' ')
     
     dt_list = list(map(int, dt_str.split()))
 
@@ -530,12 +540,13 @@ def parse_ndk_string(ndk_string, strip_data=True):
             eq_list.append(event_dict)
 
         except SyntaxError as SE:
-            #print(SE)
+            #logging.warning(SE)
             event_name_line = event_no * 5 + 1
             event_name = ndk_line_list[event_name_line].split()[0]
 
-            print("EQ {} Couldn't be processed; check file lines {}-{}"
-                  .format(event_name, event_name_line-1, event_name_line+4))
+            logging.warning(
+                "EQ {} Couldn't be processed; check file lines {}-{}"
+                .format(event_name, event_name_line-1, event_name_line+4))
 
     if n_events == 1:
         return eq_list[0]
