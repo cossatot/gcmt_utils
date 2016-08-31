@@ -2,7 +2,7 @@ from ast import literal_eval as lev
 from math import log10
 import datetime as dt
 
-from .gcmt_utils import strip_dict, merge_dicts
+#from .gcmt_utils import strip_dict, merge_dicts
 
 '''
 Functions to parse the Global CMT NDK format into more usable forms
@@ -547,3 +547,28 @@ def parse_ndk_file(filepath):
     ndk_file_string = read_ndk_file(filepath)
 
     return parse_ndk_string(ndk_file_string)
+
+
+
+'''
+util functions
+'''
+def strip_dict(d):
+    '''
+    Takes a dictionary d, and returns a new dictionary with all of
+    the values stripped if they are strings, and left alone otherwise.
+    '''
+    return {key: d[key].strip() if type(d[key])==str else d[key] for key in d} 
+
+
+def merge_dicts(*dicts):
+    '''
+    Merges a list of dictionaries; nested dictionaries should stay nested.
+    '''
+    d_merge = {}
+
+    for d in dicts:
+        d_merge.update(d)
+
+    return d_merge
+
