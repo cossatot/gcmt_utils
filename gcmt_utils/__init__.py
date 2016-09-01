@@ -1,1 +1,1 @@
-from gcmt_utils import *
+from .gcmt_utils import *

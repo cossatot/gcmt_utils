@@ -39,7 +39,7 @@ column_key_correlation_d = {
     'Body_wave_period' : 'body_wave_shortest_period',
     'Body_wave_stations' : 'body_wave_stations',
     'Date' : 'centroid_date',
-    'Datimetime' : 'centroid_datetime',
+    'Datetime' : 'centroid_datetime',
     'Depth' : 'centroid_depth',
     'Depth_err' : 'centroid_depth_err',
     'Lat_err' : 'centroid_lat_err',
@@ -212,6 +212,7 @@ def check_event_exists(tag=None, val=None, vals=None, table=None, con=None,
 title_string = "Mw: {:0.1f} Date: {} Depth: {}"
 
 def row_to_feature_dict(row, columns):
+    #TODO: make a class out of this instead of just a dict sometime
     row_d = {col_name : row[i] for i, col_name in enumerate(columns)}
     
     fd =  {'geometry': {
@@ -232,6 +233,7 @@ def row_to_feature_dict(row, columns):
                                                       row_d['Depth']),
                          'Mw': row_d['Mw'],
                          'Depth': row_d['Depth'],
+                         'Date' : row_d['Date'],
                          'minZoom' : []
                          },
            'type': 'Feature'
