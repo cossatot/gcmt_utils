@@ -1,6 +1,6 @@
 from urllib.request import urlopen
 import datetime
-#import attrs
+import logging
 
 import pandas as pd
 import numpy as np
@@ -60,11 +60,17 @@ def get_year_list(start_year=2014):
 def get_monthly_url_list():
     years = get_year_list()
 
+    #TODO: make a function that filters out future month/year combos
     return [format_monthly_url(yr, mo) for mo in months for yr in years]
 
 
 def download_base_ndk(url=jan76_dec2013_ndk_url):
-    return urlopen(url).read().decode('utf-8')
+    try:
+        logging.info("downloading base NDK catalog.")
+        ndk = urlopen(url)
+    except Exception as e:
+        logging.exception("download error:\n")
+    return ndk.read().decode('utf-8')
 
 
 def download_monthly_ndks():
@@ -73,29 +79,68 @@ def download_monthly_ndks():
     mo_data_list = []
 
     for mo_url in monthly_url_list:
+        logging.info("downloading monthly data from {}".format(mo_url))
         try:
             mo_data = urlopen(mo_url).read().decode('utf-8')
-            mo_data_list.append(mo_data)
-
-        except: #HTTPError:
-            # should log this
-            pass
+        except Exception as e:
+            logging.exception("download error:\n")
+        mo_data_list.append(mo_data)
 
     return mo_data_list
 
+
+def download_quick_ndk(url=quick_cmt_url):
+    try:
+        logging.info("downloading Quick CMT catalog.")
+        ndk = urlopen(url)
+    except Exception as e:
+        logging.exception("download error:\n")
+    return ndk.read().decode('utf-8')
+
+
 def process_catalog_ndks():
-    
+    '''
+    Function for downloading and processing the GCMT NDK catalog
+    (Jan 1976 through Dec 2013, plus monthlies since then).
+
+    Returns a list of GCMT_event objects.
+    '''
+
+    logging.info("starting catalog NDK processing")
     # get ndks
     base_ndks = download_base_ndk()
     monthly_ndks = download_monthly_ndks()
 
     # process them, yielding a list of `eq_dicts`
+    logging.info("parsing base NDK catalog")
     eq_dict_list = parse_ndk_string(base_ndks)
+    len_base = len(eq_dict_list)
+    logging.info("parsed {} records".format(len_base))
 
+    logging.info("parsing monthly NDK catalog")
     for mo_string in monthly_ndks:
         eq_dict_list += parse_ndk_string(mo_string)
+    logging.info("parsed {} monthly events".format(len(eq_dict_list)-len_base))
 
+    logging.info("making GCMT_event classes out of dicts")
     eq_list = [GCMT_event.from_eq_dict(eqd) for eqd in eq_dict_list]
+    logging.info("done with catalog NDK processing")
+
+    return eq_list
+
+
+def process_quick_cmts():
+    logging.info("starting Quick CMT NDK processing")
+    quick_ndks = download_quick_ndk()
+    
+    logging.info("parsing Quick CMT NDK catalog")
+    eq_dict_list = parse_ndk_string(quick_ndks)
+    len_quick = len(eq_dict_list)
+    logging.info("parsed {} records".format(len_quick))
+
+    logging.info("making GCMT_event classes out of dicts")
+    eq_list = [GCMT_event.from_eq_dict(eqd) for eqd in eq_dict_list]
+    logging.info("done with catalog NDK processing")
 
     return eq_list
 
@@ -119,13 +164,15 @@ def min_dens(zoom, scale=1.5):
         return int(2 **((zoom - 5) * scale))
 
 
-def add_min_zoom(eq_list, bin_size_degrees=1., min_zoom=1, max_zoom=12):
+def add_min_zoom(eq_list, bin_size_degrees=1., zoom_scale=1.5, 
+                 min_zoom=1, max_zoom=12):
     '''
     Calculates the minimum zoom threshold for each earthquake to appear in
     the GMCT Viewer based on the regional earthquake density and the 
     relative size of each earthquake compared to its neighbors
     '''
 
+    logging.info("adding min zoom")
     eq_df = pd.concat([eq.to_dataframe(columns=['Longitude','Latitude','Mw'])
                        for eq in eq_list])
 
@@ -152,7 +199,24 @@ def add_min_zoom(eq_list, bin_size_degrees=1., min_zoom=1, max_zoom=12):
 
     _ = [eq.set_minZoom(eq_mzs[i]) for i, eq in enumerate(eq_list)]
 
-    return eq_list
+    logging.info("added min zoom")
+    return #eq_list
+
+
+def make_beachball(event):
+    pass
+
+
+def make_beachballs(event_list):
+    '''
+    Makes beachballs given a sequence of events.
+    '''
+    
+    # for event in event_list:
+    #     make_beachball(event)
+
+    logging.warning('Beachball creation not implemented yet')
+    pass
 
     
 '''
@@ -326,9 +390,10 @@ class GCMT_event(object):
         self.minZoom = min_zoom
 
     def to_feature_dict(self, properties=['icon', 'title', 'Mw', 'Depth',
-                                          'Date', 'Event', 'minZoom']):
-        
-            
+                                          'Datetime', 'Event', 'minZoom']):
+        '''
+        stuff
+        ''' 
         fd =  {'geometry': {
                            'type': 'Point',
                            'coordinates' : [self.Longitude, 
@@ -349,7 +414,6 @@ class GCMT_event(object):
         return pd.DataFrame({col: self.__dict__[col] for col in columns},
                             index=[name])
 
-
     @classmethod
     def from_eq_dict(cls, eq_dict):
         
@@ -358,6 +422,27 @@ class GCMT_event(object):
         kw_dict = {col_key_d_rev[k] : v for k, v in eq_dict.items()}
 
         return cls(**kw_dict)
+
+    @classmethod
+    def from_feature_dict(cls, feature_dict):
+        '''
+        Take a feature_dict (as from this class's export method) and 
+        make a class out of it; many fields will be None.
+
+        This is intended to be used with the default to_feature_dict
+        export fields.
+        '''
+
+        fd = feature_dict # if you're into that whole brevity thing
+
+        kw_dict = {key: val for key, val in fd['properties'].items()
+                   if key not in ['icon', 'minZoom', 'title']}
+
+        kw_dict['Longitude'] = fd['geometry']['coordinates'][0]
+        kw_dict['Latitude']  = fd['geometry']['coordinates'][1]
+
+        return cls(**kw_dict)
+
 
 
 

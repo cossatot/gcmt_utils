@@ -4,7 +4,7 @@ import time
 
 import sys; sys.path.append('../')
 import gcmt_utils.ndk_parser as ndk
-import gcmt_utils.db_utils as db
+import gcmt_utils.sql_utils as db
 
 t0 = time.time()
 
