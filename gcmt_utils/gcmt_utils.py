@@ -2,6 +2,8 @@ from urllib.request import urlopen
 import datetime
 import logging
 
+import PIL
+from PIL import Image, ImageChops
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -265,16 +267,28 @@ def depth_to_color(val, v_min=10., v_max=700., cmap='viridis',
     return colormap( (val_ - v_min_) / (v_max_ - v_min_))
 
 
-def make_beachballs(event_list):
-    '''
-    Makes beachballs given a sequence of events.
-    '''
-    
-    for event in event_list:
-        make_beachball(event)
+def trim(im):
+    bg = Image.new(im.mode, im.size, im.getpixel((0,0)))
+    diff = ImageChops.difference(im, bg)
+    diff = ImageChops.add(diff, diff, 2.0, -100)
+    bbox = diff.getbbox()
+    if bbox:
+        return im.crop(bbox)
 
-    logging.warning('Beachball creation not implemented yet')
-    pass
+
+def resize_bb_file(event, directory='./', fig_format='png',
+                   overwrite=True, outfile=None):
+    fsize = int(0.7 * event.Mw**2.1) # scale image
+    infile = '{}/{}.{}'.format(directory, event.Event, fig_format)
+    bb_image = Image.open(infile)
+    bb_trim = trim(bb_image)
+    bb_resize = bb_trim.resize((fsize, fsize), resample=PIL.Image.LANCZOS)
+
+    if overwrite == True:
+        bb_resize.save(infile)
+    else:
+        bb_resize.save(outfile)
+
 
     
 '''
