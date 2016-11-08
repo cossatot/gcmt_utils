@@ -452,10 +452,10 @@ class GCMT_event(object):
                       bb_base_url = ("http://earth-analysis.com/gcmt_viewer/"
                                       + "data/beachballs/png_reduced/{}.png")):
         icon_size = self.get_icon_size()
-        icon_dict = {'icon': {'iconSize': [icon_size, icon_size],
-                              'iconUrl': bb_base_url.format(self.Event)
-                              }
+        icon_dict = {'iconSize': [icon_size, icon_size],
+                     'iconUrl': bb_base_url.format(self.Event)
                      }
+                    
         return icon_dict
 
     def set_minZoom(self, min_zoom):
