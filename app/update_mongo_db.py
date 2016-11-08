@@ -15,8 +15,12 @@ parser.add_argument('-c', '--collection_name', required=False)
 parser.add_argument('-l', '--logfile', required=False)
 
 
-def update_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
-                    collection_name='GCMT', logfile='./logs/mongo_update.log'):
+def update_mongo_db(mongo_connection_uri=None, 
+                    database_name='gcmt_dev',
+                    collection_name='quakes', 
+                    logfile='./logs/mongo_update.log',
+                    return_new_event_list=False,
+                    ):
 
     t0 = time.time()
 
@@ -25,39 +29,23 @@ def update_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
                         format='%(asctime)s %(message)s'
                         )
    
-    logging.info("\nUpdating Mongo db\n")
-    logging.info("initializing mongo client")
-    if mongo_connection_uri:
-        try:
-            client = MongoClient(mongo_connection_uri)
-        except Exception as e:
-            logging.exception(e)
-    else:
-        try:
-            client = MongoClient()
-        except Exception as e:
-            logging.exception(e)
+    client = gc.connect_to_uri(mongo_connection_uri=mongo_connection_uri,
+                               logfile=logfile)
+    
+    db = gc.connect_to_db(client, database_name=database_name)
+    
+    coll = gc.get_collection(db, collection_name=collection_name)
 
-    logging.info('connecting to db')
-    try:
-        db = client[database_name]
-    except Exception as e:
-        logging.exception(e)
-
-    logging.info('connecting to collection')
-    try:
-        coll = db[collection_name]
-    except Exception as e:
-        logging.exception(e)
-
+    
     logging.info('Pulling existing events')
-    existing_eqs = list(coll.find({}, {'properties.Datetime': 1,
-                                       'properties.Mw': 1,
-                                       'properties.minZoom':1,
-                                       'geometry.coordinates': 1,
-                                       '_id': 1} ))
+    existing_eqs = list(coll.find({}, {'properties.Datetime' : 1,
+                                       'properties.Mw' : 1,
+                                       'properties.minZoom' : 1,
+                                       'properties.Event' : 1,
+                                       'geometry.coordinates' : 1,
+                                       '_id' : 1} ))
 
-    #names = [ee['properties']['Event'] for ee in existing_eqs] # don't need?
+    names = [ee['properties']['Event'] for ee in existing_eqs] # don't need?
     dates = [ee['properties']['Datetime'] for ee in existing_eqs]
     min_zooms = [ee['properties']['minZoom'] for ee in existing_eqs]
     ids = [ee['_id'] for ee in existing_eqs]
@@ -66,9 +54,14 @@ def update_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
     logging.info('Processing Quick CMTs')
     quick_cmt_list = gc.process_quick_cmts()
     
-    new_cmts = [eq for eq in quick_cmt_list if eq.Datetime > last_date]
-    logging.info('{} new Quick CMTs'.format(len(new_cmts)))
-    gc.make_beachballs(new_cmts)
+    new_quick_cmts = [eq for eq in quick_cmt_list if eq.Datetime > last_date]
+    logging.info('{} new Quick CMTs'.format(len(new_quick_cmts)))
+    #gc.make_beachballs(new_cmts)
+    
+    logging.info('Getting newer monthly CMTs')
+    monthly_cmts = gc.process_catalog_ndks(base=False)
+    new_monthly_cmts = [cmt for cmt in monthly_cmts if cmt.Event not in names]
+    new_cmts = new_quick_cmts + new_monthly_cmts
 
     old_eqs = [gc.GCMT_event.from_feature_dict(ee) for ee in existing_eqs]
     all_eqs = old_eqs + new_cmts
@@ -110,6 +103,10 @@ def update_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
 
     t1 = time.time()
     logging.info('Done updating database in {:0.1f} s\n'.format(t1-t0))
+
+    if return_new_event_list == True:
+        return new_cmts
+
 
 if __name__ == '__main__':
     args = vars(parser.parse_args())

@@ -15,7 +15,7 @@ parser.add_argument('-l', '--logfile', required=False)
 
 
 def make_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
-                  collection_name='GCMT', logfile='./logs/mongo_build.log'):
+                  collection_name='quakes', logfile='./logs/mongo_build.log'):
 
     logging.basicConfig(filename=logfile, 
                         level=logging.INFO,
@@ -53,7 +53,7 @@ def make_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
     coll = db[collection_name]
 
     logging.info('processing ndk catalog')
-    eq_list = gc.process_catalog_ndks()
+    eq_list = gc.process_catalog_ndks(monthlies=False)
     gc.add_min_zoom(eq_list, bin_size_degrees=1.5)
 
     logging.info('inserting earthquakes in new collection')

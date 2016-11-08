@@ -2,11 +2,15 @@ from urllib.request import urlopen
 import datetime
 import logging
 
+import PIL
+from PIL import Image, ImageChops
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 
 from .ndk_parser import parse_ndk_string
 from .sql_utils import column_key_correlation_d
+from .beachballs import beachball
 
 col_key_d_rev = {val: key for key, val in column_key_correlation_d.items()}
 
@@ -36,6 +40,8 @@ quick_cmt_url = ('http://www.ldeo.columbia.edu/~gcmt/projects/CMT/catalog/'
 months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
           'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
 
+month_lag = 3 # lag time in producing quick cmt
+
 
 def format_monthly_url(year, mo, base_monthly_url=base_monthly_url):
     yr_mo_string = mo + year[2:]
@@ -59,9 +65,21 @@ def get_year_list(start_year=2014):
 
 def get_monthly_url_list():
     years = get_year_list()
+    
+    current_year = datetime.datetime.now().year
+    current_month = datetime.datetime.now().month
 
-    #TODO: make a function that filters out future month/year combos
-    return [format_monthly_url(yr, mo) for mo in months for yr in years]
+    mo_url_list = []
+
+    for yr in years:
+        for i, mo in enumerate(months):
+            if int(yr) != current_year:
+                mo_url_list.append(format_monthly_url(yr, mo))
+            else:
+                if i+1 < current_month-month_lag:
+                    mo_url_list.append(format_monthly_url(yr, mo))
+
+    return mo_url_list
 
 
 def download_base_ndk(url=jan76_dec2013_ndk_url):
@@ -98,7 +116,7 @@ def download_quick_ndk(url=quick_cmt_url):
     return ndk.read().decode('utf-8')
 
 
-def process_catalog_ndks():
+def process_catalog_ndks(base=True, monthlies=True):
     '''
     Function for downloading and processing the GCMT NDK catalog
     (Jan 1976 through Dec 2013, plus monthlies since then).
@@ -108,19 +126,25 @@ def process_catalog_ndks():
 
     logging.info("starting catalog NDK processing")
     # get ndks
-    base_ndks = download_base_ndk()
-    monthly_ndks = download_monthly_ndks()
+    if base == True:
+        base_ndks = download_base_ndk()
 
-    # process them, yielding a list of `eq_dicts`
-    logging.info("parsing base NDK catalog")
-    eq_dict_list = parse_ndk_string(base_ndks)
-    len_base = len(eq_dict_list)
-    logging.info("parsed {} records".format(len_base))
+        # process them, yielding a list of `eq_dicts`
+        logging.info("parsing base NDK catalog")
+        eq_dict_list = parse_ndk_string(base_ndks)
+        len_base = len(eq_dict_list)
+        logging.info("parsed {} records".format(len_base))
+    else:
+        eq_dict_list = []
+        len_base = 0
 
-    logging.info("parsing monthly NDK catalog")
-    for mo_string in monthly_ndks:
-        eq_dict_list += parse_ndk_string(mo_string)
-    logging.info("parsed {} monthly events".format(len(eq_dict_list)-len_base))
+    if monthlies == True:
+        monthly_ndks = download_monthly_ndks()
+        logging.info("parsing monthly NDK catalog")
+        for mo_string in monthly_ndks:
+            eq_dict_list += parse_ndk_string(mo_string)
+        logging.info("parsed {} monthly events"
+                      .format(len(eq_dict_list)-len_base))
 
     logging.info("making GCMT_event classes out of dicts")
     eq_list = [GCMT_event.from_eq_dict(eqd) for eqd in eq_dict_list]
@@ -202,21 +226,69 @@ def add_min_zoom(eq_list, bin_size_degrees=1., zoom_scale=1.5,
     logging.info("added min zoom")
     return #eq_list
 
+# BEEECHBALLS
+def make_beachball(event, fig_format='png', directory='./',
+                   bb_linewidth=2, bb_size=20, bb_width=100,
+                   bb_color='b'):
+    ev = event
 
-def make_beachball(event):
-    pass
+    mt = [ev.Mrr, ev.Mtt, ev.Mpp, ev.Mrt, ev.Mrp, ev.Mtp]
+    sdp = [ev.Strike_1, ev.Dip_1, ev.Rake_1]
+    bb_color = depth_to_color(ev.Depth)
+
+    outfile = '{}/{}.{}'.format(directory, event.Event, fig_format)
+
+    fig = plt.figure(1)
+    try:
+        logging.info('Making beachball for {}'.format(event.Event))
+        beachball(mt, linewidth=bb_linewidth, size=bb_size, width=bb_width,
+                  outfile=outfile, fig=fig, facecolor=bb_color)
+    except Exception as e:
+        logging.exception(e)
+
+    return
 
 
-def make_beachballs(event_list):
-    '''
-    Makes beachballs given a sequence of events.
-    '''
-    
-    # for event in event_list:
-    #     make_beachball(event)
+def depth_to_color(val, v_min=10., v_max=700., cmap='viridis',
+                   log=True):
 
-    logging.warning('Beachball creation not implemented yet')
-    pass
+    colormap = plt.get_cmap(cmap)
+
+    if log == True:
+        v_min_ = np.log(v_min)
+        v_max_ = np.log(v_max)
+        val_ = np.log(val)
+
+    else:
+        v_min_ = v_min
+        v_max_ = v_max
+        val_ = val
+
+    return colormap( (val_ - v_min_) / (v_max_ - v_min_))
+
+
+def trim(im):
+    bg = Image.new(im.mode, im.size, im.getpixel((0,0)))
+    diff = ImageChops.difference(im, bg)
+    diff = ImageChops.add(diff, diff, 2.0, -100)
+    bbox = diff.getbbox()
+    if bbox:
+        return im.crop(bbox)
+
+
+def resize_bb_file(event, directory='./', fig_format='png',
+                   overwrite=True, outfile=None):
+    fsize = int(0.7 * event.Mw**2.1) # scale image
+    infile = '{}/{}.{}'.format(directory, event.Event, fig_format)
+    bb_image = Image.open(infile)
+    bb_trim = trim(bb_image)
+    bb_resize = bb_trim.resize((fsize, fsize), resample=PIL.Image.LANCZOS)
+
+    if overwrite == True:
+        bb_resize.save(infile)
+    else:
+        bb_resize.save(outfile)
+
 
     
 '''
