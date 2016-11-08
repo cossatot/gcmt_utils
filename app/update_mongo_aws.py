@@ -60,6 +60,8 @@ def update_mongo_aws():
                         level=logging.INFO,
                         format='%(asctime)s %(message)s'
                         )
+    
+    logging.info('{} new cmts'.format(len(new_cmts)))
 
     client = gc.connect_to_uri(mongo_connection_uri=mc_uri,
                                logfile=logfile)
@@ -68,7 +70,8 @@ def update_mongo_aws():
     coll = gc.get_collection(db, collection_name=collection_name)
 
     events = list(coll.find({}, {'properties.Event':1}))
-    mongo_event_names = [ev['properties']['Event'] for ev in events]
+    #mongo_event_names = [ev['properties']['Event'] for ev in events]
+    mongo_event_names = [ev.Event for ev in new_cmts]
     
     # get list of bbs on aws
     logging.info('getting existing BB list from AWS')
@@ -95,11 +98,15 @@ def update_mongo_aws():
     logging.info('need {} new BBs'.format(len(aws_need_bbs)))
 
 
-    if (len(new_cmts) > 0 and len(aws_need_bbs) > 0):
+    if len(new_cmts) > 0 and len(aws_need_bbs) > 0:
         logging.info('making new BBs')
-
+        
+        new_event_counter = 0
         for event in new_cmts:
             if event.Event in aws_need_bbs:
+                new_event_counter += 1
+                logging.info('doing BB {} / {}'.format(new_event_counter,
+                                                       len(aws_need_bbs)))
                 gc.make_beachball(event, directory='bbs')
                 gc.resize_bb_file(event, directory='bbs')
                 try:
@@ -108,6 +115,11 @@ def update_mongo_aws():
                               prefix=prefix, bucket=bucket)
                 except Exception as e:
                     logging.exception(e)
+            else:
+                pass
+
+    else:
+        logging.info('no new BBs needed')
 
 
 

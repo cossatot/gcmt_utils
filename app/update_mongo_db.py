@@ -54,7 +54,8 @@ def update_mongo_db(mongo_connection_uri=None,
     logging.info('Processing Quick CMTs')
     quick_cmt_list = gc.process_quick_cmts()
     
-    new_quick_cmts = [eq for eq in quick_cmt_list if eq.Datetime > last_date]
+    #new_quick_cmts = [eq for eq in quick_cmt_list if eq.Datetime > last_date]
+    new_quick_cmts = quick_cmt_list
     logging.info('{} new Quick CMTs'.format(len(new_quick_cmts)))
     #gc.make_beachballs(new_cmts)
     
