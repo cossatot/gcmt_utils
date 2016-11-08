@@ -63,8 +63,6 @@ def make_mongo_db(mongo_connection_uri=None, database_name='gcmt_dev',
     except Exception as e:
         logging.exception(e)
 
-    print(eq_list[0].to_feature_dict())
-
     logging.info('inserted {} new records'.format(
                                              len(insert_results.inserted_ids)))
     
