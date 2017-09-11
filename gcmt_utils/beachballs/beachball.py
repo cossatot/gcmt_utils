@@ -25,8 +25,8 @@ Most source code provided here are adopted from
 .. _`Generic Mapping Tools (GMT)`: https://gmt.soest.hawaii.edu
 .. _`bb.m`: http://www.ceri.memphis.edu/people/olboyd/Software/Software.html
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+#from __future__ import (absolute_import, division, print_function,
+#                        unicode_literals)
 #from future.builtins import *  # NOQA @UnusedWildImport
 
 import io
@@ -140,8 +140,8 @@ def beach(fm, linewidth=2, facecolor='b', bgcolor='w', edgecolor='k',
         raise TypeError("Wrong input value for 'fm'.")
 
     # Only at least size 100, i.e. 100 points in the matrix are allowed
-    if size < 100:
-        size = 100
+    #if size < 100:
+    #    size = 100
 
     # Return as collection
     plot_dc_used = True
@@ -194,8 +194,8 @@ def beach(fm, linewidth=2, facecolor='b', bgcolor='w', edgecolor='k',
 
 
 def beachball(fm, linewidth=2, facecolor='b', bgcolor='w', edgecolor='k',
-              alpha=1.0, xy=(0, 0), width=200, size=100, nofill=False,
-              zorder=100, outfile=None, format=None, fig=None):
+              alpha=1.0, xy=(0, 0), width=100, size=20, nofill=False,
+              zorder=100, outfile=None, format=None, fig=None, dpi=100):
     """
     Draws a beach ball diagram of an earthquake focal mechanism.
 
@@ -247,7 +247,7 @@ def beachball(fm, linewidth=2, facecolor='b', bgcolor='w', edgecolor='k',
 
     # plot the figure
     if not fig:
-        fig = plt.figure(figsize=(3, 3), dpi=100)
+        fig = plt.figure(figsize=(3, 3), dpi=dpi)
         fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
         fig.set_figheight(width // 100)
         fig.set_figwidth(width // 100)
@@ -267,12 +267,12 @@ def beachball(fm, linewidth=2, facecolor='b', bgcolor='w', edgecolor='k',
     # export
     if outfile:
         if format:
-            fig.savefig(outfile, dpi=100, transparent=True, format=format)
+            fig.savefig(outfile, dpi=dpi, transparent=True, format=format)
         else:
-            fig.savefig(outfile, dpi=100, transparent=True)
+            fig.savefig(outfile, dpi=dpi, transparent=True)
     elif format and not outfile:
         imgdata = io.BytesIO()
-        fig.savefig(imgdata, format=format, dpi=100, transparent=True)
+        fig.savefig(imgdata, format=format, dpi=dpi, transparent=True)
         imgdata.seek(0)
         return imgdata.read()
     else:

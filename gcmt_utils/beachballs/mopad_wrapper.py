@@ -24,9 +24,9 @@ written by Lars Krieger and Sebastian Heimann.
     GNU Lesser General Public License, Version 3
     (https://www.gnu.org/copyleft/lesser.html)
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-from future.builtins import *  # NOQA @UnusedWildImport
+#from __future__ import (absolute_import, division, print_function,
+#                        unicode_literals)
+#from future.builtins import *  # NOQA @UnusedWildImport
 
 import numpy as np
 import matplotlib.collections as mpl_collections

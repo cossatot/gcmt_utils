@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-gcmt_db = '../data/gcmt_table_bb_urls.sqlite'
+gcmt_db = '../data/gcmt_table.sqlite'
 gcmt_table = "GCMT_events"
 
 with sq.connect(gcmt_db) as con:
@@ -36,8 +36,8 @@ def save_event_beachball(idx, df, bb_type='tensor', fig_format='svg',
 #bb_dir = '../data/new_bbs/svg'
 bb_dir = '../../beachballs/png'
 
-depth_min = gcmt_df.Depth.min()
-depth_max = gcmt_df.Depth.max()
+depth_min = 10. #gcmt_df.Depth.min()
+depth_max = 700. #gcmt_df.Depth.max()
 
 def depth_to_color(val, v_min=depth_min, v_max=depth_max, cmap='viridis',
                    log=True):

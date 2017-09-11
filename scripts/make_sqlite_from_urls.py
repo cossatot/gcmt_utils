@@ -1,9 +1,13 @@
+import matplotlib as mpl
+mpl.use('svg')
+
 from urllib.request import urlopen
 import sqlite3 as lite
 
 import sys; sys.path.append('../')
 import gcmt_utils.ndk_parser as ndk
-import gcmt_utils.db_utils as db
+import gcmt_utils.sql_utils as sq
+import gcmt_utils as gc
 
 jan76_dec2013_ndk_url = 'http://www.ldeo.columbia.edu/~gcmt/projects/CMT/catalog/jan76_dec13.ndk'
 
@@ -47,7 +51,7 @@ for mo_string in mo_data_list:
 
 print('adding beachballs to dicts')
 
-bb_rel_dir_path = '../data/old_bbs/'
+bb_rel_dir_path = '../data/bbs/'
 
 
 def get_bb(eq_d, bb_dir_path):
@@ -65,22 +69,19 @@ def get_bb(eq_d, bb_dir_path):
 
 
 
-for eq_d in eq_dict_list:
-    get_bb(eq_d, bb_rel_dir_path)
-
 print('doing SQL stuff')
 
 gcmt_db = '../data/gcmt_table.sqlite'
 gcmt_table = 'GCMT_events'
-gcmt_schema = db.sqlite_gcmt_table_schema
+gcmt_schema = sq.sqlite_gcmt_table_schema
 
-db.make_gcmt_table(gcmt_table, gcmt_schema, gcmt_db)
+sq.make_gcmt_table(gcmt_table, gcmt_schema, gcmt_db)
 
-eq_list_tuple = db.make_big_table_tuple(eq_dict_list)
+eq_list_tuple = sq.make_big_table_tuple(eq_dict_list)
 
 con = lite.connect(gcmt_db)
 
 with con:
-    db.insert_many_rows(con, gcmt_table, len(db.table_cols), eq_list_tuple)
+    sq.insert_many_rows(con, gcmt_table, len(sq.table_cols), eq_list_tuple)
 
 print('done')
