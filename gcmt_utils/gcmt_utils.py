@@ -229,23 +229,24 @@ def add_min_zoom(eq_list, bin_size_degrees=1., zoom_scale=1.5,
 # BEEECHBALLS
 def make_beachball(event, fig_format='png', directory='./',
                    bb_linewidth=2, bb_size=20, bb_width=100,
-                   bb_color='b'):
+                   bb_color='b', dpi=100):
     ev = event
 
-    mt = [ev.Mrr, ev.Mtt, ev.Mpp, ev.Mrt, ev.Mrp, ev.Mtp]
-    sdp = [ev.Strike_1, ev.Dip_1, ev.Rake_1]
-    bb_color = depth_to_color(ev.Depth)
+    mt = [ev['Mrr'], ev['Mtt'], ev['Mpp'], ev['Mrt'], ev['Mrp'], ev['Mtp']]
+    sdp = [ev['Strike_1'], ev['Dip_1'], ev['Rake_1']]
+    bb_color = depth_to_color(ev['Depth'])
 
-    outfile = '{}/{}.{}'.format(directory, event.Event, fig_format)
+    outfile = '{}{}.{}'.format(directory, event['Event'], fig_format)
 
     fig = plt.figure(1)
     try:
-        logging.info('Making beachball for {}'.format(event.Event))
+        logging.info('Making beachball for {}'.format(event['Event']))
         beachball(mt, linewidth=bb_linewidth, size=bb_size, width=bb_width,
-                  outfile=outfile, fig=fig, facecolor=bb_color)
+                  outfile=outfile, fig=fig, facecolor=bb_color, dpi=dpi)
+        plt.close(fig)
+
     except Exception as e:
         logging.exception(e)
-
     return
 
 
@@ -278,17 +279,20 @@ def trim(im):
 
 def resize_bb_file(event, directory='./', fig_format='png',
                    overwrite=True, outfile=None):
-    fsize = int(0.7 * event.Mw**2.1) # scale image
-    infile = '{}/{}.{}'.format(directory, event.Event, fig_format)
-    bb_image = Image.open(infile)
-    bb_trim = trim(bb_image)
-    bb_resize = bb_trim.resize((fsize, fsize), resample=PIL.Image.LANCZOS)
+    fsize = int(0.7 * event['Mw']**2.1) # scale image
+    infile = '{}/{}.{}'.format(directory, event['Event'], fig_format)
+    
+    try:
+        bb_image = Image.open(infile)
+        bb_trim = trim(bb_image)
+        bb_resize = bb_trim.resize((fsize, fsize), resample=PIL.Image.LANCZOS)
 
-    if overwrite == True:
-        bb_resize.save(infile)
-    else:
-        bb_resize.save(outfile)
-
+        if overwrite == True:
+            bb_resize.save(infile)
+        else:
+            bb_resize.save(outfile)
+    except FileNotFoundError as e:
+        print(e)
 
     
 '''
